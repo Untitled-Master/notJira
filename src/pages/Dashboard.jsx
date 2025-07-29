@@ -246,15 +246,16 @@ export default function DashboardPage({ user }) {
     if (!userInfo || !userInfo.uid) return;
     setViewingUser({ ...userInfo, isLoading: true });
     try {
-      const userProfileRef = ref(db, `users/${userInfo.uid}`);
+      // *** UPDATED: Now fetches from the /profiles path ***
+      const userProfileRef = ref(db, `profiles/${userInfo.uid}`);
       const snapshot = await get(userProfileRef);
       const fullProfile = snapshot.exists()
         ? { ...userInfo, ...snapshot.val(), isLoading: false }
-        : { ...userInfo, isLoading: false };
+        : { ...userInfo, isLoading: false }; // Fallback if no profile exists
       setViewingUser(fullProfile);
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
-      setViewingUser({ ...userInfo, isLoading: false }); // Fallback on error
+      setViewingUser({ ...userInfo, isLoading: false });
     }
   };
   

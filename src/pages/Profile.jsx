@@ -11,10 +11,10 @@ export default function ProfilePage({ user }) {
   const [bio, setBio] = useState('');
   const [company, setCompany] = useState('');
   const [photoURL, setPhotoURL] = useState(user.photoURL || '');
-  const [photoURLInput, setPhotoURLInput] = useState(''); // For the URL input field
+  const [photoURLInput, setPhotoURLInput] = useState('');
   
   // State for ticket stats
-  const [stats, setStats] =useState({ created: 0, working: 0, done: 0, canceled: 0, emailSent: 0 });
+  const [stats, setStats] = useState({ created: 0, working: 0, done: 0, canceled: 0, emailSent: 0 });
 
   // State for UI feedback
   const [loading, setLoading] = useState(false);
@@ -31,8 +31,9 @@ export default function ProfilePage({ user }) {
   useEffect(() => {
     if (!user) return;
 
-    const userRef = ref(db, `users/${user.uid}`);
-    const onProfileValue = onValue(userRef, (snapshot) => {
+    // *** UPDATED: Now reads from the /profiles path ***
+    const userProfileRef = ref(db, `profiles/${user.uid}`);
+    const onProfileValue = onValue(userProfileRef, (snapshot) => {
       const data = snapshot.val() || {};
       const profileData = {
         name: user.displayName || '',
@@ -46,13 +47,13 @@ export default function ProfilePage({ user }) {
       setCompany(profileData.company);
       setPhotoURL(profileData.photoURL);
       
-      // Store the initial state for the cancel functionality
       if (!editMode) {
         setInitialState(profileData);
         setPhotoURLInput(profileData.photoURL.startsWith('data:') ? '' : profileData.photoURL);
       }
     });
 
+    // Stats path remains the same
     const statsRef = ref(db, `stats/${user.uid}`);
     const onStatsValue = onValue(statsRef, (snapshot) => {
       const data = snapshot.val();
@@ -71,7 +72,7 @@ export default function ProfilePage({ user }) {
       onProfileValue();
       onStatsValue();
     };
-  }, [user, db, editMode]); // Rerun if editMode changes to capture initial state
+  }, [user, db, editMode]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -84,11 +85,13 @@ export default function ProfilePage({ user }) {
     try {
       await updateProfile(auth.currentUser, { displayName: name, photoURL });
       
+      // *** UPDATED: Now writes to the /profiles path ***
       const updates = {
-        [`users/${user.uid}/bio`]: bio,
-        [`users/${user.uid}/company`]: company,
-        [`users/${user.uid}/photoURL`]: photoURL,
-        [`users/${user.uid}/name`]: name, // Also save name to DB for consistency
+        [`profiles/${user.uid}/bio`]: bio,
+        [`profiles/${user.uid}/company`]: company,
+        [`profiles/${user.uid}/photoURL`]: photoURL,
+        [`profiles/${user.uid}/name`]: name,
+        [`profiles/${user.uid}/email`]: user.email, // Good practice to store email here too
       };
       await update(ref(db), updates);
 
@@ -106,7 +109,6 @@ export default function ProfilePage({ user }) {
   const handleCancel = () => {
     setEditMode(false);
     setError('');
-    // Revert form fields to their initial state
     if (initialState) {
       setName(initialState.name);
       setBio(initialState.bio);
@@ -122,7 +124,7 @@ export default function ProfilePage({ user }) {
     const reader = new FileReader();
     reader.onload = (event) => {
       setPhotoURL(event.target.result);
-      setPhotoURLInput(''); // Clear URL input if a file is chosen
+      setPhotoURLInput('');
     };
     reader.readAsDataURL(file);
   };
@@ -174,7 +176,6 @@ export default function ProfilePage({ user }) {
             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2"><User size={20} /> Personal Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Profile Picture Section */}
               <div className="flex flex-col items-center md:items-start">
                 <div className="relative mb-2">
                   <img src={photoURL || `https://ui-avatars.com/api/?name=${name || 'U'}&background=0284c7&color=fff&size=128`} alt="Profile" className="w-32 h-32 rounded-full object-cover border-2 border-blue-500" />
@@ -189,13 +190,7 @@ export default function ProfilePage({ user }) {
                   <div className='w-full text-center md:text-left'>
                      <p className="text-xs text-slate-400 mb-2">Upload or paste a URL below.</p>
                      <div className="relative">
-                        <input
-                            type="text"
-                            value={photoURLInput}
-                            onChange={(e) => setPhotoURLInput(e.target.value)}
-                            placeholder="Image URL"
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <input type="text" value={photoURLInput} onChange={(e) => setPhotoURLInput(e.target.value)} placeholder="Image URL" className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                      </div>
                      <button onClick={handleImageChangeFromUrl} className="w-full mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-colors">Set Image</button>
@@ -203,7 +198,6 @@ export default function ProfilePage({ user }) {
                 ) : null}
               </div>
               
-              {/* Info Fields */}
               <div className="md:col-span-2 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Full Name</label>
